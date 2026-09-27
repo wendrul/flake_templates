@@ -8,21 +8,29 @@
     # Community repo providing pre-built ESP-IDF toolchains and environments
     esp-dev = {
       url = "github:mirrexagon/nixpkgs-esp-dev";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
   outputs = { self, nixpkgs, flake-utils, esp-dev }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        # Apply the ESP-IDF overlay to nixpkgs
+        # Apply config and overlays to nixpkgs
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ esp-dev.overlays.default ];
+          config = {
+            permittedInsecurePackages = [
+              "python3.14-ecdsa-0.19.2"
+            ];
+          };
+          overlays = [
+            (final: prev: {
+              python310 = prev.python310 or prev.python311;
+            })
+            esp-dev.overlays.default
+          ];
         };
 
-        # Choose your ESP-IDF version here (e.g., esp-idf-full, esp-idf-esp32, etc.)
-        # 'esp-idf-full' includes toolchains for esp32, esp32s2, esp32s3, esp32c3, etc.
+        # Choose your ESP-IDF version here
         espIdf = pkgs.esp-idf-full;
       in
       {
@@ -45,7 +53,7 @@
 
             # Serial communication & flashing tools
             esptool
-            minicom # or screen / picocom
+            minicom
 
             # Needed for USB serial permissions/rules
             libusb1
@@ -54,7 +62,6 @@
 
           shellHook = ''
             # Source the ESP-IDF export script automatically when entering the shell
-            # This sets up $IDF_PATH and modifies your PATH for xtensa tools
             source ${espIdf}/export.sh
 
             echo "========================================================="
